@@ -1,4 +1,4 @@
-# RecipeMD
+# XRecipeMD -- Extended RecipeMD
 
 A [standard format](https://recipemd.org/specification.html) for recipes as [Markdown](https://commonmark.org) files 
 and a [python reference implementation](https://recipemd.org/reference_implementation.html). The reference 
@@ -10,6 +10,8 @@ More info on our website: [recipemd.org](https://recipemd.org)
 <p>&nbsp;</p>
 
 <a href="https://recipemd.org/"><img src="https://raw.githubusercontent.com/RecipeMD/RecipeMD/master/logo/recipemd-mark.png" style="float:right; margin-left:5em"></a>
+
+XRecipeMD is a fork of [RecipeMD](https://github.com/RecipeMD/RecipeMD).
 
 ## License
 
