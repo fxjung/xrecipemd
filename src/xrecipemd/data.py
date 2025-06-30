@@ -1,15 +1,15 @@
 """
 Defines the RecipeMD data structures, provides parser, serializer and recipe scaling functions.
 """
-#from __future__ import annotations
+
+# from __future__ import annotations
 
 import re
 import frontmatter
 import unicodedata
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
-from typing import Callable, Generator, List, Optional, Tuple, TypeVar, Union, \
-    Any
+from typing import Callable, Generator, List, Optional, Tuple, TypeVar, Union, Any
 from ruamel.yaml import YAML
 from io import StringIO
 
@@ -18,27 +18,38 @@ from markdown_it import MarkdownIt
 from markdown_it.token import Token
 from typing_extensions import Literal
 
-__all__ = ['RecipeParser', 'RecipeSerializer', 'multiply_recipe', 'get_recipe_with_yield',
-           'Recipe', 'Ingredient', 'IngredientGroup', 'Amount', 'IngredientList']
+__all__ = [
+    "RecipeParser",
+    "RecipeSerializer",
+    "multiply_recipe",
+    "get_recipe_with_yield",
+    "Recipe",
+    "Ingredient",
+    "IngredientGroup",
+    "Amount",
+    "IngredientList",
+]
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass_json
 @dataclass(frozen=True)
 class IngredientList:
-    ingredients: List['Ingredient'] = field(default_factory=list)
-    ingredient_groups: List['IngredientGroup'] = field(default_factory=list)
+    ingredients: List["Ingredient"] = field(default_factory=list)
+    ingredient_groups: List["IngredientGroup"] = field(default_factory=list)
 
     @property
-    def leaf_ingredients(self) -> Generator['Ingredient', None, None]:
+    def leaf_ingredients(self) -> Generator["Ingredient", None, None]:
         yield from self.ingredients
         for ingredient_group in self.ingredient_groups:
             yield from ingredient_group.leaf_ingredients
 
     @property
-    def all_ingredients(self) -> Generator[Union['Ingredient', 'IngredientGroup'], None, None]:
+    def all_ingredients(
+        self,
+    ) -> Generator[Union["Ingredient", "IngredientGroup"], None, None]:
         yield from self.ingredients
         yield from self.ingredient_groups
 
@@ -48,7 +59,7 @@ class IngredientList:
 class IngredientGroup(IngredientList):
     # This needs to have a default value. It inherits from IngredientList, which has default values for its fields. In the
     # generated dataclass constructor this field comes after the parent fields and fields without a default value need to precede
-    # fields without one. We just use empty string here, the value is always overwritten during parse. 
+    # fields without one. We just use empty string here, the value is always overwritten during parse.
     title: str = ""
 
 
@@ -87,47 +98,60 @@ class RecipeSerializer:
             stream = StringIO()
             yaml.dump(recipe.metadata, stream)
             rep += f"---\n{stream.getvalue()}---\n\n"
-        rep += f'# {recipe.title}\n\n'
+        rep += f"# {recipe.title}\n\n"
         if recipe.description is not None:
-            rep += f'{recipe.description}\n\n'
+            rep += f"{recipe.description}\n\n"
         if len(recipe.tags) > 0:
             rep += f'*{", ".join(recipe.tags)}*\n\n'
         if len(recipe.yields) > 0:
             rep += f'**{", ".join(self._serialize_amount(a, rounding=rounding) for a in recipe.yields)}**\n\n'
-        rep += f'---\n\n'
-        rep += ("\n".join(self._serialize_ingredient(g, 2, rounding=rounding) for g in recipe.all_ingredients)).strip()
+        rep += f"---\n\n"
+        rep += (
+            "\n".join(
+                self._serialize_ingredient(g, 2, rounding=rounding)
+                for g in recipe.all_ingredients
+            )
+        ).strip()
         if recipe.instructions is not None:
-            rep += f'\n\n---\n\n'
+            rep += f"\n\n---\n\n"
             rep += recipe.instructions
         return rep
 
-    def _serialize_ingredient(self, ingredient, level, *, rounding: Optional[int] = None):
+    def _serialize_ingredient(
+        self, ingredient, level, *, rounding: Optional[int] = None
+    ):
         if isinstance(ingredient, IngredientGroup):
-            return f'\n{"#" * level} {ingredient.title}\n\n'\
-                   + "\n".join(self._serialize_ingredient(i, level+1, rounding=rounding) for i in ingredient.all_ingredients)
+            return f'\n{"#" * level} {ingredient.title}\n\n' + "\n".join(
+                self._serialize_ingredient(i, level + 1, rounding=rounding)
+                for i in ingredient.all_ingredients
+            )
         else:
             if ingredient.amount is not None:
-                return f'- *{self._serialize_amount(ingredient.amount, rounding=rounding)}* {self._serialize_ingredient_text(ingredient)}'
-            return f'- {self._serialize_ingredient_text(ingredient)}'
+                return f"- *{self._serialize_amount(ingredient.amount, rounding=rounding)}* {self._serialize_ingredient_text(ingredient)}"
+            return f"- {self._serialize_ingredient_text(ingredient)}"
 
     @staticmethod
     def _serialize_ingredient_text(ingredient: Ingredient):
         if ingredient.link:
-            return f'[{ingredient.name}]({ingredient.link})'
+            return f"[{ingredient.name}]({ingredient.link})"
         return ingredient.name
 
     @staticmethod
     def _serialize_amount(amount: Amount, *, rounding: Optional[int] = None):
         if amount.unit is not None:
-            return f'{RecipeSerializer._normalize_factor(amount.factor, rounding=rounding)} {amount.unit}'
-        return f'{RecipeSerializer._normalize_factor(amount.factor, rounding=rounding)}'
+            return f"{RecipeSerializer._normalize_factor(amount.factor, rounding=rounding)} {amount.unit}"
+        return f"{RecipeSerializer._normalize_factor(amount.factor, rounding=rounding)}"
 
     @staticmethod
-    def _normalize_factor(factor: Decimal, *, rounding: Optional[int]=None):
+    def _normalize_factor(factor: Decimal, *, rounding: Optional[int] = None):
         if rounding is not None:
             factor = round(factor, rounding)
         # remove trailing zeros (https://docs.python.org/3/library/decimal.html#decimal-faq)
-        factor = factor.quantize(Decimal(1)) if factor == factor.to_integral() else factor.normalize()
+        factor = (
+            factor.quantize(Decimal(1))
+            if factor == factor.to_integral()
+            else factor.normalize()
+        )
         return factor
 
 
@@ -135,7 +159,7 @@ class RecipeParser:
     """
     Parses strings to a :class:`Recipe` or :class:`Amount`.
 
-    The markdown format is described in the :ref:`RecipeMD Specification`. 
+    The markdown format is described in the :ref:`RecipeMD Specification`.
     """
 
     _list_split = re.compile(r"(?<!\d),|,(?!\d)")
@@ -148,12 +172,14 @@ class RecipeParser:
     _src_lines: List[str]
     _block_tokens: List[Token]
 
-
     def __init__(self):
         self._md_block = MarkdownIt()
         self._md_block.disable("reference")
         self._md_block.disable(
-            names=[*self._md_block.get_all_rules()["inline"], *self._md_block.get_all_rules()["inline2"]]
+            names=[
+                *self._md_block.get_all_rules()["inline"],
+                *self._md_block.get_all_rules()["inline2"],
+            ]
         )
 
         self._md_emph = MarkdownIt()
@@ -190,7 +216,7 @@ class RecipeParser:
         <BLANKLINE>
         >>> recipe.ingredients[0].name
         'avocado'
-    
+
 
         :raises RuntimeException: If src is not a valid RecipeMD recipe.
         """
@@ -210,7 +236,9 @@ class RecipeParser:
             self._block_tokens.pop(0)
         else:
             # TODO this hr is required, but we might just continue anyways?
-            raise RuntimeError(f"Invalid, expected hr before ingredient list, got {self._block_tokens[0] and self._block_tokens[0].type if self._block_tokens else None} instead")
+            raise RuntimeError(
+                f"Invalid, expected hr before ingredient list, got {self._block_tokens[0] and self._block_tokens[0].type if self._block_tokens else None} instead"
+            )
 
         ingredients, ingredient_groups = self._parse_ingredients()
 
@@ -218,7 +246,9 @@ class RecipeParser:
             self._block_tokens.pop(0)
         elif self._block_tokens:
             # TODO this hr is required, but we might just continue anyways?
-            raise RuntimeError(f"Invalid, expected hr before instructions, got {self._block_tokens[0] and self._block_tokens[0].type} instead")
+            raise RuntimeError(
+                f"Invalid, expected hr before instructions, got {self._block_tokens[0] and self._block_tokens[0].type} instead"
+            )
 
         instructions = self._parse_instructions()
 
@@ -257,7 +287,10 @@ class RecipeParser:
         return heading_content_token.content
 
     def _parse_description(self):
-        return self._parse_blocks_while(lambda: (self._block_tokens[0].type != "hr") and self._peek_emph_paragraph() is None)
+        return self._parse_blocks_while(
+            lambda: (self._block_tokens[0].type != "hr")
+            and self._peek_emph_paragraph() is None
+        )
 
     def _parse_tags_and_yields(self):
         tags: List[str] = []
@@ -267,39 +300,45 @@ class RecipeParser:
             token_type, content = peeked_emph_paragraph
             if token_type == "em_open":
                 if tags:
-                    raise RuntimeError(f"Invalid, tags may not be specified multiple times")
+                    raise RuntimeError(
+                        f"Invalid, tags may not be specified multiple times"
+                    )
                 tags = [t.strip() for t in self._list_split.split(content)]
             else:
                 if yields:
-                    raise RuntimeError(f"Invalid, tags may not be specified multiple times")
-                yields = [self.parse_amount(t.strip()) for t in self._list_split.split(content)]
-            
+                    raise RuntimeError(
+                        f"Invalid, tags may not be specified multiple times"
+                    )
+                yields = [
+                    self.parse_amount(t.strip())
+                    for t in self._list_split.split(content)
+                ]
+
             # consume paragraph
-            del self._block_tokens[:3]            
+            del self._block_tokens[:3]
             peeked_emph_paragraph = self._peek_emph_paragraph()
         return tags, yields
-
 
     def _parse_ingredients(self):
         ingredients: List[Ingredient] = []
         ingredient_groups: List[IngredientGroup] = []
         while self._block_tokens and (
-            self._block_tokens[0].type == "heading_open" 
+            self._block_tokens[0].type == "heading_open"
             or self._block_tokens[0].type == "bullet_list_open"
             or self._block_tokens[0].type == "ordered_list_open"
         ):
-            if self._block_tokens[0].type == 'heading_open':
+            if self._block_tokens[0].type == "heading_open":
                 self._parse_ingredient_groups(ingredient_groups, parent_level=-1)
                 pass
             else:
                 self._parse_ingredient_list(ingredients)
         return ingredients, ingredient_groups
 
-    def _parse_ingredient_groups(self, ingredient_groups: List['IngredientGroup'], parent_level):
-        while self._block_tokens and (
-            self._block_tokens[0].type == "heading_open" 
-        ):
-            level = int(self._block_tokens[0].tag.lstrip('h'))
+    def _parse_ingredient_groups(
+        self, ingredient_groups: List["IngredientGroup"], parent_level
+    ):
+        while self._block_tokens and (self._block_tokens[0].type == "heading_open"):
+            level = int(self._block_tokens[0].tag.lstrip("h"))
             if level <= parent_level:
                 return
 
@@ -308,30 +347,34 @@ class RecipeParser:
             assert self._block_tokens.pop(0).type == "heading_close"
 
             group = IngredientGroup(title=heading_content_token.content)
-            if self._block_tokens and (self._block_tokens[0].type == "bullet_list_open" or self._block_tokens[0].type == "ordered_list_open"):
+            if self._block_tokens and (
+                self._block_tokens[0].type == "bullet_list_open"
+                or self._block_tokens[0].type == "ordered_list_open"
+            ):
                 self._parse_ingredient_list(group.ingredients)
 
             self._parse_ingredient_groups(group.ingredient_groups, parent_level=level)
 
             ingredient_groups.append(group)
 
-    def _parse_ingredient_list(self, ingredients: List['Ingredient']):
+    def _parse_ingredient_list(self, ingredients: List["Ingredient"]):
         while self._block_tokens and (
             self._block_tokens[0].type == "bullet_list_open"
             or self._block_tokens[0].type == "ordered_list_open"
         ):
             list_open = self._block_tokens.pop(0)
 
-            list_close_index = RecipeParser._get_close_index(list_open, self._block_tokens)
+            list_close_index = RecipeParser._get_close_index(
+                list_open, self._block_tokens
+            )
             list_close = self._block_tokens[list_close_index]
             while self._block_tokens[0].type == "list_item_open":
                 ingredients.append(self._parse_ingredient())
             assert self._block_tokens.pop(0) == list_close
 
-    def _parse_ingredient(self) -> 'Ingredient':
+    def _parse_ingredient(self) -> "Ingredient":
         list_item_open = self._block_tokens.pop(0)
         assert list_item_open.type == "list_item_open"
-
 
         continuation_start_line = None
         first_paragraph_content = None
@@ -361,7 +404,10 @@ class RecipeParser:
             name = ""
             link = None
 
-        name_continuation = self._parse_blocks_while(lambda: self._block_tokens[0] != list_item_close, start_line=continuation_start_line)
+        name_continuation = self._parse_blocks_while(
+            lambda: self._block_tokens[0] != list_item_close,
+            start_line=continuation_start_line,
+        )
         if name_continuation:
             name += "\n" + name_continuation
 
@@ -371,7 +417,11 @@ class RecipeParser:
             raise RuntimeError("No ingredient name!")
         name = name.strip()
 
-        return Ingredient(name=name, amount=RecipeParser.parse_amount(amount) if amount is not None else None, link=link)
+        return Ingredient(
+            name=name,
+            amount=RecipeParser.parse_amount(amount) if amount is not None else None,
+            link=link,
+        )
 
     def _parse_instructions(self):
         if not self._block_tokens:
@@ -380,17 +430,39 @@ class RecipeParser:
 
     _value_formats = [
         # improper fraction (1 1/2)
-        (r'(\d+)\s+(\d+)\s*/\s*(\d+)', lambda match: Decimal(match.group(2)) + (Decimal(match.group(3)) / Decimal(match.group(4))), 3),
+        (
+            r"(\d+)\s+(\d+)\s*/\s*(\d+)",
+            lambda match: Decimal(match.group(2))
+            + (Decimal(match.group(3)) / Decimal(match.group(4))),
+            3,
+        ),
         # improper fraction with unicode vulgar fraction (1 ½)
-        (r'(\d+)\s+([\u00BC-\u00BE\u2150-\u215E])', lambda match: Decimal(match.group(2)) + Decimal(unicodedata.numeric(match.group(3))), 2),
+        (
+            r"(\d+)\s+([\u00BC-\u00BE\u2150-\u215E])",
+            lambda match: Decimal(match.group(2))
+            + Decimal(unicodedata.numeric(match.group(3))),
+            2,
+        ),
         # proper fraction (5/6)
-        (r'(\d+)\s*/\s*(\d+)', lambda match: Decimal(match.group(2)) / Decimal(match.group(3)), 2),
+        (
+            r"(\d+)\s*/\s*(\d+)",
+            lambda match: Decimal(match.group(2)) / Decimal(match.group(3)),
+            2,
+        ),
         # proper fraction with unicode vulgar fraction (⅚)
-        (r'([\u00BC-\u00BE\u2150-\u215E])', lambda match: Decimal(unicodedata.numeric(match.group(2))), 1),
+        (
+            r"([\u00BC-\u00BE\u2150-\u215E])",
+            lambda match: Decimal(unicodedata.numeric(match.group(2))),
+            1,
+        ),
         # decimal (5,4 or 5.6)
-        (r'(\d*)[.,](\d+)', lambda match: Decimal(match.group(2) + '.' + match.group(3)), 2),
+        (
+            r"(\d*)[.,](\d+)",
+            lambda match: Decimal(match.group(2) + "." + match.group(3)),
+            2,
+        ),
         # integer (4)
-        (r'(\d+)', lambda match: Decimal(match.group(2)), 1)
+        (r"(\d+)", lambda match: Decimal(match.group(2)), 1),
     ]
 
     @staticmethod
@@ -401,7 +473,7 @@ class RecipeParser:
         >>> RecipeParser.parse_amount('3.5 l')
         Amount(factor=Decimal('3.5'), unit='l')
 
-        Will recognize different :ref:`number formats<Amount>`:  
+        Will recognize different :ref:`number formats<Amount>`:
 
         >>> RecipeParser.parse_amount('3 1/2 l')
         Amount(factor=Decimal('3.5'), unit='l')
@@ -414,21 +486,23 @@ class RecipeParser:
         """
         # iterate over different value format
         for regexp, factor_function, group_count in RecipeParser._value_formats:
-            match = re.match(r'^\s*(-?)\s*' + regexp + r'(.*)$', amount_str)
+            match = re.match(r"^\s*(-?)\s*" + regexp + r"(.*)$", amount_str)
             if match:
                 factor = factor_function(match)
-                if match.group(1) == '-':
+                if match.group(1) == "-":
                     factor = -1 * factor
                 unit = match.group(group_count + 2).strip()
                 return Amount(factor, unit or None)
-            
+
         unit = amount_str.strip()
         if unit:
             raise RuntimeError("Amount must start with a number")
 
         return None
 
-    def _peek_emph_paragraph(self) -> Optional[Tuple[Union[Literal['em_open'], Literal['strong_open']], str]]:
+    def _peek_emph_paragraph(
+        self,
+    ) -> Optional[Tuple[Union[Literal["em_open"], Literal["strong_open"]], str]]:
         if (
             len(self._block_tokens) < 3
             or self._block_tokens[0].type != "paragraph_open"
@@ -455,12 +529,17 @@ class RecipeParser:
         if inline_tokens:
             return None
 
-        return (emph_open_token.type, RecipeParser._serialize_emph_inline_tokens(emph_content_tokens))
-        
-    def _parse_blocks_while(self, condition: Callable[[], bool], start_line: Optional[int] = None):
+        return (
+            emph_open_token.type,
+            RecipeParser._serialize_emph_inline_tokens(emph_content_tokens),
+        )
+
+    def _parse_blocks_while(
+        self, condition: Callable[[], bool], start_line: Optional[int] = None
+    ):
         end_line = None
         while self._block_tokens and condition():
-            open_token = self._consume_block()        
+            open_token = self._consume_block()
             assert open_token.map
             start_line = start_line or open_token.map[0]
             end_line = open_token.map[1]
@@ -480,9 +559,13 @@ class RecipeParser:
 
         if len(inline_tokens) and inline_tokens[0].type == "em_open":
             emph_open_token = inline_tokens.pop(0)
-            emph_close_index = RecipeParser._get_close_index(emph_open_token, inline_tokens)
+            emph_close_index = RecipeParser._get_close_index(
+                emph_open_token, inline_tokens
+            )
             emph_content_tokens = inline_tokens[:emph_close_index]
-            emph_content = RecipeParser._serialize_emph_inline_tokens(emph_content_tokens)
+            emph_content = RecipeParser._serialize_emph_inline_tokens(
+                emph_content_tokens
+            )
             del inline_tokens[: emph_close_index + 1]
         else:
             emph_content = None
@@ -522,7 +605,6 @@ class RecipeParser:
         ):
             inline_tokens.pop(0)
 
-    
     @staticmethod
     def _consume_whitespace_text_tokens(inline_tokens):
         while (
@@ -539,7 +621,7 @@ class RecipeParser:
     @staticmethod
     def _get_close_index(open: Token, tokens: List[Token]):
         assert open.type.endswith("_open")
-        close_type = open.type[:-5]+ "_close"
+        close_type = open.type[:-5] + "_close"
         close_index = next(
             (
                 i
@@ -562,7 +644,7 @@ def multiply_recipe(recipe: Recipe, multiplier: Decimal) -> Recipe:
     ...   ingredients=[
     ...     Ingredient(name='Eggs', amount=Amount(factor=Decimal('5'), unit=None), link=None),
     ...     Ingredient(name='Butter', amount=Amount(factor=Decimal('200'), unit='g'), link=None),
-    ...    ]    
+    ...    ]
     ... )
     >>> multiplied_recipe = multiply_recipe(recipe, 3)
     <BLANKLINE>
@@ -572,7 +654,14 @@ def multiply_recipe(recipe: Recipe, multiplier: Decimal) -> Recipe:
     >>> multiplied_recipe.ingredients[1]
     Ingredient(name='Butter', amount=Amount(factor=Decimal('600'), unit='g'), link=None)
     """
-    recipe = replace(recipe, yields=[replace(y, factor=y.factor * multiplier) for y in recipe.yields if y.factor is not None])
+    recipe = replace(
+        recipe,
+        yields=[
+            replace(y, factor=y.factor * multiplier)
+            for y in recipe.yields
+            if y.factor is not None
+        ],
+    )
     recipe = _multiply_ingredient_list(recipe, multiplier)
     return recipe
 
@@ -581,7 +670,7 @@ def get_recipe_with_yield(recipe: Recipe, required_yield: Amount) -> Recipe:
     """
     Scale the given recipe to a required yield.
 
-    Creates a new recipe, which has the yield given by `required_yield`. A recipe can only be scaled if a yield with a matching 
+    Creates a new recipe, which has the yield given by `required_yield`. A recipe can only be scaled if a yield with a matching
     unit is present.
 
     :raises StopIteration: If no yield with a matching unit can be found.
@@ -589,7 +678,9 @@ def get_recipe_with_yield(recipe: Recipe, required_yield: Amount) -> Recipe:
     """
     if required_yield.factor is None:
         raise RuntimeError("Required yield must contain a factor")
-    matching_recipe_yield = next((y for y in recipe.yields if y.unit == required_yield.unit), None)
+    matching_recipe_yield = next(
+        (y for y in recipe.yields if y.unit == required_yield.unit), None
+    )
     if matching_recipe_yield is None:
         # no unit in required amount is interpreted as "one recipe"
         if required_yield.unit is None:
@@ -598,21 +689,36 @@ def get_recipe_with_yield(recipe: Recipe, required_yield: Amount) -> Recipe:
             raise StopIteration
     if matching_recipe_yield.factor is None:
         raise RuntimeError(f"Recipe yield with matching unit must contain a factor")
-    recipe = multiply_recipe(recipe, required_yield.factor / matching_recipe_yield.factor)
+    recipe = multiply_recipe(
+        recipe, required_yield.factor / matching_recipe_yield.factor
+    )
     return recipe
 
 
 def _multiply_ingredient_list(ingredient_list: T, multiplier: Decimal) -> T:
-    ingredients: List[Ingredient] = [_multiply_ingredient(i, multiplier) for i in ingredient_list.ingredients]
-    ingredient_groups: List[IngredientGroup] = [_multiply_ingredient_list(ig, multiplier)
-                                                for ig in ingredient_list.ingredient_groups]
-    return replace(ingredient_list, ingredients=ingredients, ingredient_groups=ingredient_groups)
+    ingredients: List[Ingredient] = [
+        _multiply_ingredient(i, multiplier) for i in ingredient_list.ingredients
+    ]
+    ingredient_groups: List[IngredientGroup] = [
+        _multiply_ingredient_list(ig, multiplier)
+        for ig in ingredient_list.ingredient_groups
+    ]
+    return replace(
+        ingredient_list, ingredients=ingredients, ingredient_groups=ingredient_groups
+    )
 
 
 def _multiply_ingredient(ingr: Ingredient, multiplier: Decimal) -> Ingredient:
     if ingr.amount is None:
         return ingr
-    return replace(ingr, amount=replace(
-        ingr.amount,
-        factor=ingr.amount.factor*multiplier if ingr.amount.factor is not None else None
-    ))
+    return replace(
+        ingr,
+        amount=replace(
+            ingr.amount,
+            factor=(
+                ingr.amount.factor * multiplier
+                if ingr.amount.factor is not None
+                else None
+            ),
+        ),
+    )

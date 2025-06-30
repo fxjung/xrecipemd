@@ -17,14 +17,14 @@ import recipemd
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('../recipemd'))
+sys.path.insert(0, os.path.abspath("../recipemd"))
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'RecipeMD'
-copyright = '2025, Tilman Stehr and contributors'
-author = 'Tilman Stehr and contributors'
+project = "RecipeMD"
+copyright = "2025, Tilman Stehr and contributors"
+author = "Tilman Stehr and contributors"
 
 # The full version, including alpha/beta/rc tags
 release = recipemd.__version__
@@ -38,40 +38,40 @@ release = recipemd.__version__
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.linkcode",
-    'sphinx.ext.githubpages',
-    'sphinx.ext.autosectionlabel',
-    'm2r2',
-    'sphinxcontrib.fulltoc',
-    'sphinxcontrib.autoprogram',
-    'sphinx_autodoc_typehints',
-    'sphinxcontrib.apidoc',
+    "sphinx.ext.githubpages",
+    "sphinx.ext.autosectionlabel",
+    "m2r2",
+    "sphinxcontrib.fulltoc",
+    "sphinxcontrib.autoprogram",
+    "sphinx_autodoc_typehints",
+    "sphinxcontrib.apidoc",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 
 # -- Options for extensions -------------------------------------------------
 
 # autodoc settings
 autodoc_inherit_docstrings = True
-autodoc_member_order = 'bysource'
+autodoc_member_order = "bysource"
 autodoc_default_options = {
-    'exclude-members': 'schema,from_dict,to_dict',
+    "exclude-members": "schema,from_dict,to_dict",
 }
 
 # autodoc_typehings settings
 always_document_param_types = True
 
 # apidoc settings
-os.environ['SPHINX_APIDOC_OPTIONS'] = 'members,undoc-members,show-inheritance'
-apidoc_module_dir = '../recipemd'
-apidoc_output_dir = '_apidoc'
+os.environ["SPHINX_APIDOC_OPTIONS"] = "members,undoc-members,show-inheritance"
+apidoc_module_dir = "../recipemd"
+apidoc_output_dir = "_apidoc"
 apidoc_separate_modules = True
 apidoc_toc_file = False
 apidoc_module_first = True
@@ -82,18 +82,18 @@ def linkcode_resolve(domain, info):
     """
     Determine the URL corresponding to Python object
     """
-    if domain != 'py':
+    if domain != "py":
         return None
 
-    modname = info['module']
-    fullname = info['fullname']
+    modname = info["module"]
+    fullname = info["fullname"]
 
     submod = sys.modules.get(modname)
     if submod is None:
         return None
 
     obj = submod
-    for part in fullname.split('.'):
+    for part in fullname.split("."):
         try:
             obj = getattr(obj, part)
         except Exception:
@@ -132,7 +132,7 @@ def linkcode_resolve(domain, info):
 
     # get branch (set by github when running in action, else by the makefile)
     try:
-        branch = os.environ['GITHUB_REF'].split('/')[-1]
+        branch = os.environ["GITHUB_REF"].split("/")[-1]
     except:
         branch = "master"
 
@@ -143,7 +143,7 @@ def linkcode_resolve(domain, info):
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'alabaster'
+html_theme = "alabaster"
 
 # add edit_on_github
 html_sidebars = {
@@ -159,26 +159,26 @@ html_sidebars = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static', '../logo']
+html_static_path = ["_static", "../logo"]
 
-html_favicon = '_static/favicon.ico'
+html_favicon = "_static/favicon.ico"
 
 # needed to create CNAME file
-html_baseurl = 'https://recipemd.org'
+html_baseurl = "https://recipemd.org"
 
 
 # -- Alabaster -------------------------------------------------
 
 html_theme_options = {
-    'logo': 'recipemd-mark.svg',
-    'logo_name': True,
-    'logo_text_align': 'center',
-    'fixed_sidebar': False,
-    'github_user': 'RecipeMD',
-    'github_repo': 'recipemd',
-    'github_banner': True,
-    'github_button': False,
-    'github_type': 'star',
+    "logo": "recipemd-mark.svg",
+    "logo_name": True,
+    "logo_text_align": "center",
+    "fixed_sidebar": False,
+    "github_user": "RecipeMD",
+    "github_repo": "recipemd",
+    "github_banner": True,
+    "github_button": False,
+    "github_type": "star",
 }
 
 # -- Edit on Github -------------------------------------------------
